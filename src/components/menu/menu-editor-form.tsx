@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PlusIcon, Trash2Icon } from "lucide-react"
 import { useFieldArray, useForm } from "react-hook-form"
+import { toast } from "sonner"
 
 import { createMaterialFromMenuAction, type MaterialOption } from "@/actions/material"
 import {
@@ -25,7 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
-import { MATERIAL_UNITS } from "@/constants/constants"
+import { getMaterialUnitLabel, MATERIAL_UNITS } from "@/constants/constants"
 
 type MenuEditorFormProps = {
   mode: "create" | "edit"
@@ -37,8 +38,6 @@ type MenuEditorFormProps = {
 export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuEditorFormProps) {
   const router = useRouter()
 
-  const [menuMessage, setMenuMessage] = useState<string | null>(null)
-  const [materialMessage, setMaterialMessage] = useState<string | null>(null)
   const [isMenuImageUploading, setIsMenuImageUploading] = useState(false)
   const [isMaterialImageUploading, setIsMaterialImageUploading] = useState(false)
   const [menuMaterials, setMenuMaterials] = useState<MaterialOption[]>(materials)
@@ -83,19 +82,18 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
     isSubmittingMenu || isSubmittingMaterial || isMenuImageUploading || isMaterialImageUploading
 
   const handleSubmitMenu = (values: MenuFormValues) => {
-    setMenuMessage(null)
-
     startSubmitMenuTransition(async () => {
       const result =
         mode === "create"
           ? await createMenuWithRecipesAction(values)
           : await updateMenuWithRecipesAction(menuId ?? 0, values)
 
-      setMenuMessage(result.message)
-
       if (!result.success) {
+        toast.error(result.message)
         return
       }
+
+      toast.success(result.message)
 
       if (mode === "create" && result.menuId) {
         router.push(`/dashboard/menu/${result.menuId}`)
@@ -107,15 +105,15 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
   }
 
   const handleSubmitMaterial = (values: CreateMaterialQuickValues) => {
-    setMaterialMessage(null)
-
     startSubmitMaterialTransition(async () => {
       const result = await createMaterialFromMenuAction(values)
-      setMaterialMessage(result.message)
 
       if (!result.success || !result.material) {
+        toast.error(result.message)
         return
       }
+
+      toast.success(result.message)
 
       const createdMaterial = result.material
 
@@ -247,7 +245,7 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
                               <NativeSelectOption value="0">Pilih material</NativeSelectOption>
                               {availableMaterialOptions.map((materialOption) => (
                                 <NativeSelectOption key={materialOption.id} value={String(materialOption.id)}>
-                                  {materialOption.name} ({materialOption.unit})
+                                  {materialOption.name} ({getMaterialUnitLabel(materialOption.unit)})
                                 </NativeSelectOption>
                               ))}
                             </NativeSelect>
@@ -291,8 +289,6 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
                   </div>
                 ))}
               </div>
-
-              {menuMessage ? <p className="text-sm text-zinc-700">{menuMessage}</p> : null}
 
               <Button type="submit" disabled={isBusy}>
                 {isSubmittingMenu ? "Menyimpan..." : mode === "create" ? "Buat Menu" : "Simpan Perubahan"}
@@ -370,8 +366,6 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
                   </FormItem>
                 )}
               />
-
-              {materialMessage ? <p className="text-sm text-zinc-700">{materialMessage}</p> : null}
 
               <Button type="submit" variant="outline" disabled={isBusy}>
                 {isSubmittingMaterial ? "Menyimpan Material..." : "Tambah Material"}

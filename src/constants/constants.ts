@@ -5,11 +5,54 @@ export const APP_NAME = "Be Nice Coffee"
 export const DEFAULT_PAGE_SIZE = 10
 export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const
 
-export const MATERIAL_UNITS = [
-  { value: "GRAM", label: "Gram" },
-  { value: "ML", label: "Mililiter" },
-  { value: "PIECE", label: "Pcs" },
-] as const
+export const MATERIAL_UNIT_LABEL_MAP = {
+  GRAM: "Gram",
+  ML: "Mililiter",
+  PIECE: "Pcs",
+} as const
+
+export const MATERIAL_TRANSACTION_TYPE_LABEL_MAP = {
+  PURCHASE: "Pembelian",
+  SELL: "Penjualan",
+  ADJUSTMENT: "Penyesuaian",
+} as const
+
+export const ORDER_STATUS_LABEL_MAP = {
+  PENDING: "Pending",
+  COMPLETED: "Selesai",
+  CANCELLED: "Dibatalkan",
+} as const
+
+export function getMaterialUnitLabel(unit: string) {
+  return MATERIAL_UNIT_LABEL_MAP[unit as keyof typeof MATERIAL_UNIT_LABEL_MAP] ?? unit
+}
+
+export function getMaterialTransactionTypeLabel(type: string) {
+  return (
+    MATERIAL_TRANSACTION_TYPE_LABEL_MAP[
+      type as keyof typeof MATERIAL_TRANSACTION_TYPE_LABEL_MAP
+    ] ?? type
+  )
+}
+
+export function getOrderStatusLabel(status: string) {
+  return ORDER_STATUS_LABEL_MAP[status as keyof typeof ORDER_STATUS_LABEL_MAP] ?? status
+}
+
+export const MATERIAL_UNITS = (
+  Object.entries(MATERIAL_UNIT_LABEL_MAP) as Array<
+    [keyof typeof MATERIAL_UNIT_LABEL_MAP, (typeof MATERIAL_UNIT_LABEL_MAP)[keyof typeof MATERIAL_UNIT_LABEL_MAP]]
+  >
+).map(([value, label]) => ({ value, label }))
+
+export const MATERIAL_TRANSACTION_TYPES = (
+  Object.entries(MATERIAL_TRANSACTION_TYPE_LABEL_MAP) as Array<
+    [
+      keyof typeof MATERIAL_TRANSACTION_TYPE_LABEL_MAP,
+      (typeof MATERIAL_TRANSACTION_TYPE_LABEL_MAP)[keyof typeof MATERIAL_TRANSACTION_TYPE_LABEL_MAP],
+    ]
+  >
+).map(([value, label]) => ({ value, label }))
 
 export type DashboardNavigationItem = {
   href: string

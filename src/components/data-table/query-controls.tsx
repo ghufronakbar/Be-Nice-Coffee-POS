@@ -17,6 +17,7 @@ type QueryControlsProps = {
   sortOrder: "asc" | "desc"
   pageSize: number
   sortOptions: SortOption[]
+  extraFilters?: React.ReactNode
 }
 
 export function QueryControls({
@@ -27,12 +28,13 @@ export function QueryControls({
   sortOrder,
   pageSize,
   sortOptions,
+  extraFilters,
 }: QueryControlsProps) {
   return (
     <form method="get" action={pathname} className="grid gap-3 rounded-xl border border-zinc-200 bg-white p-4 lg:grid-cols-12">
       <input type="hidden" name="page" value="1" />
 
-      <div className="lg:col-span-5">
+      <div className={extraFilters ? "lg:col-span-4" : "lg:col-span-5"}>
         <Input name="q" placeholder={searchPlaceholder} defaultValue={searchValue} />
       </div>
 
@@ -60,6 +62,8 @@ export function QueryControls({
           <NativeSelectOption value="50">50</NativeSelectOption>
         </NativeSelect>
       </div>
+
+      {extraFilters ? <div className="lg:col-span-2">{extraFilters}</div> : null}
 
       <div className="flex gap-2 lg:col-span-2">
         <Button type="submit" className="flex-1">
