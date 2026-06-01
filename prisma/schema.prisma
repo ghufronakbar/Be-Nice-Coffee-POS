@@ -37,7 +37,7 @@ model Menu {
   id         Int         @id @default(autoincrement())
   name       String
   price      Decimal     @default(0)
-  imageUrl   String
+  imageUrl   String?
   recipes    Recipe[]
   orderItems OrderItem[]
 
@@ -48,9 +48,9 @@ model Menu {
 
 // bahan baku seperti beans, susu, dll
 model Material {
-  id       Int    @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   name     String
-  imageUrl String
+  imageUrl String?
 
   unit             Unit
   recordedBuyPrice Decimal @default(0) // dihitung otomatis dari = sisa total stok / total harga
@@ -196,6 +196,17 @@ model MaterialPurchaseItem {
   total  Decimal @default(0)
 
   materialTransaction MaterialTransaction?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+model Image {
+  id Int @id @default(autoincrement())
+
+  hash String @unique
+  url  String
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
