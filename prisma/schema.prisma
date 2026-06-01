@@ -7,3 +7,197 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+// customer 
+model Customer {
+  id Int @id @default(autoincrement())
+
+  name  String
+  phone String @unique // sebagai code customer
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+  orders    Order[]
+}
+
+// menu jadi seperti americano
+model Menu {
+  id         Int         @id @default(autoincrement())
+  name       String
+  price      Decimal     @default(0)
+  imageUrl   String
+  recipes    Recipe[]
+  orderItems OrderItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+// bahan baku seperti beans, susu, dll
+model Material {
+  id       Int    @id @default(autoincrement())
+  name     String
+  imageUrl String
+
+  unit             Unit
+  recordedBuyPrice Decimal @default(0) // dihitung otomatis dari = sisa total stok / total harga
+  recordedAmount   Decimal @default(0) // dihitung otomatis, setiap ada order maupun penyesuaian stok
+
+  recipes              Recipe[]
+  materialTransactions MaterialTransaction[]
+
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @default(now()) @updatedAt
+  deletedAt             DateTime?
+  materialPurchaseItems MaterialPurchaseItem[]
+}
+
+// resep dari menu jadi berapa banyak material yang diperlukan untuk membuat 1 menu
+model Recipe {
+  id         Int      @id @default(autoincrement())
+  menu       Menu     @relation(fields: [menuId], references: [id])
+  menuId     Int
+  material   Material @relation(fields: [materialId], references: [id])
+  materialId Int
+  amount     Decimal  @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+enum Unit {
+  GRAM
+  ML
+  PIECE
+}
+
+// stok dari material
+// setiap order langsung buat banyak row tergantung menu yang dipesan
+model MaterialTransaction {
+  id Int @id @default(autoincrement())
+
+  materialId Int
+  material   Material @relation(fields: [materialId], references: [id])
+
+  type   MaterialTransactionType
+  amount Decimal                 @default(0) // minus jika SELL, plus jika PURCHASE, & ADJUSTMENT tergantung nominal
+
+  note String? @db.Text()
+
+  // Untuk melacak stok keluar (SELL) many to 1 relationship
+  orderItemId Int?
+  orderItem   OrderItem? @relation(fields: [orderItemId], references: [id])
+
+  // Untuk melacak stok masuk (PURCHASE) 1 to 1 relationship
+  materialPurchaseItemId Int?                  @unique
+  materialPurchaseItem   MaterialPurchaseItem? @relation(fields: [materialPurchaseItemId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+enum MaterialTransactionType {
+  PURCHASE // membeli raw material
+  SELL // jika ada yang order
+  ADJUSTMENT // menyesuaikan stok
+}
+
+// order
+model Order {
+  id         Int       @id @default(autoincrement())
+  customerId Int?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  status OrderStatus @default(PENDING)
+
+  note String? @db.Text()
+
+  total            Decimal @default(0)
+  recordedBuyPrice Decimal @default(0) // total dari seluruh material
+  recordedProfit   Decimal @default(0) // total - recordedBuyPrice
+
+  orderItems OrderItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime? // jika order dibatalkan
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model OrderItem {
+  id Int @id @default(autoincrement())
+
+  menuId Int
+  menu   Menu @relation(fields: [menuId], references: [id])
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  amount Int @default(1) // jumlah order
+
+  recordedBuyPrice Decimal @default(0) // harga saat order (total dari seluruh material)
+
+  price Decimal @default(0) // harga saat order
+  total Decimal @default(0) // price * amount
+
+  materialTransactions MaterialTransaction[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+// untuk pembelian material
+model MaterialPurchase {
+  id            Int     @id @default(autoincrement())
+  invoiceNumber String  @unique // input manual
+  total         Decimal @default(0)
+
+  note String? @db.Text()
+
+  materialPurchaseItems MaterialPurchaseItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
+
+model MaterialPurchaseItem {
+  id Int @id @default(autoincrement())
+
+  materialId Int
+  material   Material @relation(fields: [materialId], references: [id])
+
+  materialPurchaseId Int
+  materialPurchase   MaterialPurchase @relation(fields: [materialPurchaseId], references: [id])
+
+  amount Decimal @default(0)
+  price  Decimal @default(0)
+  total  Decimal @default(0)
+
+  materialTransaction MaterialTransaction?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+}
