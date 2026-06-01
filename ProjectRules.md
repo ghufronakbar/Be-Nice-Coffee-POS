@@ -1,3 +1,215 @@
+# Project Rules (Structured)
+
+Dokumen ini adalah pedoman implementasi aplikasi agar konsisten antar modul, mudah dirawat, dan mudah direuse.
+
+## 1) Prinsip Umum
+
+- Gunakan **Next.js App Router** dengan pendekatan **Server Component First**.
+- Seluruh UI ditulis dalam **Bahasa Indonesia**.
+- Semua mutasi data wajib melalui **Server Actions**.
+- Semua form wajib divalidasi dengan **Zod**.
+- Terapkan **Soft Delete** menggunakan kolom `deletedAt`.
+- Untuk kolom unik pada data yang dihapus (misalnya `email`, `phone`), ubah nilainya saat soft delete dengan format:
+  - `[value]-[timestamp]-deleted`
+
+## 2) Arsitektur Folder
+
+- `src/app`:
+  - Routing, page, layout, API route.
+  - `page.tsx` wajib Server Component.
+  - Jika butuh interaksi tinggi, buat `client.tsx`.
+- `src/actions`:
+  - Semua server action per entitas (`user.ts`, `menu.ts`, `material.ts`, dst).
+- `src/components/ui`:
+  - Komponen dasar Shadcn/UI primitives.
+- `src/components`:
+  - Komponen custom fitur.
+- `src/constants`:
+  - `env.ts`: re-export environment variables.
+  - `constants.ts`: konstanta statis aplikasi.
+- `src/lib`:
+  - Utility lintas fitur (`prisma`, auth, query, formatter, uploader helper).
+
+## 3) Routing Konvensi
+
+### Root & Auth
+
+- `/`:
+  - Cek sesi login.
+  - Belum login -> redirect `/auth/login`.
+  - Sudah login -> redirect `/dashboard`.
+- `/auth`:
+  - Jika belum ada user sama sekali -> redirect `/auth/first-time-setup`.
+  - Jika sudah ada user -> redirect `/auth/login`.
+- `/auth/login`: login utama.
+- `/auth/first-time-setup`: setup user pertama.
+
+### Dashboard
+
+- Semua route `dashboard/*` wajib diproteksi guard sesi.
+- Navigasi dashboard mengikuti `DASHBOARD_NAVIGATION` di `src/constants/constants.ts`.
+
+## 4) Standard Auth & Session
+
+- Password hashing/verification wajib pakai `bcryptjs`.
+- Session cookie:
+  - HttpOnly.
+  - SameSite `lax`.
+  - `secure` hanya di production.
+- Session helper dan parser ditempatkan di `src/lib/auth.ts`.
+
+## 5) Standard Form & Validation
+
+- Form stack wajib:
+  - `react-hook-form`
+  - `@hookform/resolvers/zod`
+  - Komponen `Form` dari `src/components/ui/form.tsx`
+- Pola schema:
+  - Schema zod ditempatkan dekat fitur form (contoh: `src/components/menu/menu-form-schema.ts`).
+  - Input optional string dari form sebaiknya menerima `""` dan di-transform ke `undefined` bila diperlukan.
+- Error handling:
+  - Validasi gagal harus mengembalikan message yang jelas untuk user.
+
+## 6) Standard Data Fetching & Mutation
+
+- Fetching data dilakukan dari server (Server Component atau Server Action).
+- Mutation hanya lewat Server Action.
+- Setelah mutate, wajib `revalidatePath` untuk path terkait.
+- Gunakan tipe return action yang eksplisit. Contoh pola:
+  - `{ success: boolean, message: string, data?: T }`
+
+## 7) Business Rules Domain
+
+### Menu & Recipe (BOM)
+
+- `Menu` dan `Material` adalah entitas berbeda.
+- Satu menu harus memiliki recipe (komposisi material per porsi).
+- Variasi ukuran cup dibuat sebagai entitas menu terpisah.
+
+### Order & POS
+
+- `OrderItem` wajib relasi many-to-one ke `Order`.
+- Saat order terjual, stok material berkurang sesuai recipe.
+- Pengurangan stok dicatat ke `MaterialTransaction` tipe `SELL`.
+- `recordedBuyPrice` pada `OrderItem`/`Order` wajib snapshot saat transaksi.
+
+### Inventory
+
+- Semua mutasi stok wajib tercatat di `MaterialTransaction`.
+- `MaterialPurchaseItem` berelasi one-to-one dengan `MaterialTransaction` tipe `PURCHASE`.
+- Wajib ada 1 fungsi util terpusat untuk refresh:
+  - `recordedAmount`
+  - `recordedBuyPrice`
+- Fungsi refresh dipanggil di semua action yang memengaruhi stok.
+
+## 8) Standard Image Upload
+
+- Gunakan Cloudinary melalui API route internal.
+- Endpoint standar: `/api/image-upload`.
+- Flow upload:
+  - Hitung hash file (`sha256`).
+  - Cek tabel `Image` berdasarkan hash.
+  - Jika sudah ada, return URL existing (dedup).
+  - Jika belum ada, upload ke Cloudinary, simpan hash+url ke `Image`, lalu return URL.
+- Komponen uploader harus reusable dan menerima props:
+  - value URL saat ini
+  - callback update nilai form
+  - callback loading state
+
+## 9) Reusable Components (Wajib Diprioritaskan)
+
+### Reusable untuk List Data
+
+- `src/components/data-table/query-controls.tsx`
+  - Untuk search, sort, order, page size.
+- `src/components/data-table/query-pagination.tsx`
+  - Untuk pagination berbasis querystring.
+- `src/lib/query-string.ts`
+  - Builder query string yang konsisten lintas halaman.
+
+### Reusable untuk Image
+
+- `src/components/shared/image-uploader.tsx`
+  - Upload image reusable untuk Menu, Material, Customer, dsb.
+
+### Reusable untuk Form Menu/Recipe
+
+- `src/components/menu/menu-editor-form.tsx`
+  - Dipakai untuk mode create dan edit.
+- `src/components/menu/menu-form-schema.ts`
+  - Single source of truth schema menu + quick material.
+
+## 10) Konvensi Penulisan Kode
+
+- Gunakan TypeScript strict.
+- Nama file:
+  - kebanyakan pakai `kebab-case` untuk komponen/utility file.
+- Penamaan action:
+  - Verb + Entity + `Action` (misal `getMenuListAction`, `createMenuWithRecipesAction`).
+- Penamaan type:
+  - `EntityResult`, `EntityMutationResult`, `EntityOption`.
+- Hindari duplikasi logic:
+  - Query parsing, formatter, uploader, pagination dipindah ke reusable util/component.
+
+## 11) Checklist Implementasi Modul Baru
+
+- Tambahkan route dashboard + update navigation constant.
+- Buat schema zod untuk semua form.
+- Buat server actions untuk get/list/detail/create/update/delete(soft delete).
+- Buat list page dengan:
+  - search
+  - sorting
+  - ordering
+  - pagination
+- Jika ada media, gunakan `ImageUploader` + `/api/image-upload`.
+- Tambahkan revalidate path yang relevan.
+- Pastikan guard auth bekerja pada route dashboard.
+- Jalankan minimal:
+  - `npx tsc --noEmit`
+  - `eslint` untuk file yang diubah
+
+## 12) Catatan Integrasi
+
+- `next.config.ts` harus mengizinkan domain image eksternal yang dipakai (contoh Cloudinary).
+- Semua environment baru wajib didaftarkan di `src/constants/env.ts`.
+- Hindari akses `process.env` langsung di banyak file; gunakan `env` constant.
+
+## 13) Lampiran: Dokumen Rules Sebelumnya
+
+Bagian ini mempertahankan konteks dokumen lama, tetapi tidak dijadikan sumber utama agar tidak duplikatif.
+
+### Ringkasan Rules Lama
+
+- General & Soft Delete:
+  - Soft delete via `deletedAt`.
+  - Penyesuaian nilai unique field saat delete: `[value]-[timestamp]-deleted`.
+  - Form wajib Zod.
+  - Mutasi wajib Server Actions.
+- Menu & Recipe:
+  - `Menu` dan `Material` entitas terpisah.
+  - Tiap menu memiliki recipe per porsi.
+  - Variasi cup size dipisah sebagai menu berbeda.
+- Order & POS:
+  - `OrderItem` many-to-one ke `Order`.
+  - Penjualan memotong stok material via recipe.
+  - Catat ke `MaterialTransaction` tipe `SELL`.
+  - `recordedBuyPrice` pada order wajib snapshot.
+- Inventory:
+  - Semua mutasi stok dicatat di ledger `MaterialTransaction`.
+  - `MaterialPurchaseItem` one-to-one ke transaction tipe `PURCHASE`.
+  - Wajib fungsi refresh stok dan modal rata-rata terpusat.
+- Routing:
+  - Root/Auth, Dashboard, Inventory, Sales/Report sesuai daftar route pada versi lama.
+- Architecture:
+  - Folder `src`, Shadcn di `src/components/ui`, custom di `src/components`.
+  - Re-export env di `src/constants/env.ts`.
+  - Konstanta di `src/constants/constants.ts`.
+  - Server Component First + client split bila perlu.
+  - Grouping actions per entitas di `src/actions`.
+  - Password security dengan `bcryptjs`.
+
+## Tambahan
+
 # Business Rules
 
 **General & Soft Delete**
