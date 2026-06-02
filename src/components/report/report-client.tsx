@@ -77,6 +77,11 @@ const materialChartConfig = {
 
 const pieColors = ["#2563eb", "#16a34a", "#dc2626"]
 
+const signedNumberFormatter = new Intl.NumberFormat("id-ID", {
+  signDisplay: "exceptZero",
+  maximumFractionDigits: 2,
+})
+
 type CsvRow = Record<string, string | number>
 
 type CsvColumn = {
@@ -121,6 +126,10 @@ function downloadBlob(blob: Blob, filename: string) {
 
 function formatCsvDate(value: string | number) {
   return formatDateTime(new Date(String(value)))
+}
+
+function formatSignedAmount(value: number) {
+  return signedNumberFormatter.format(value)
 }
 
 function buildFormattedOrderRows(report: ReportClientProps["report"]): CsvRow[] {
@@ -202,10 +211,18 @@ function buildReportPdf(report: ReportClientProps["report"]) {
   const pageWidth = 595
   const pageHeight = 842
   const margin = 42
+  const contentWidth = pageWidth - margin * 2
+  const contentTop = pageHeight - margin - 28
   const lineHeight = 16
+  const summaryWidths = [126, 126, 133, contentWidth - 126 - 126 - 133]
+  const statusWidths = [211, 100, contentWidth - 211 - 100]
+  const topMenuWidths = [221, 60, 115, contentWidth - 221 - 60 - 115]
+  const materialUsageWidths = [205, 80, 90, contentWidth - 205 - 80 - 90]
+  const materialTransactionWidths = [230, 110, contentWidth - 230 - 110]
+  const inventoryWidths = [171, 70, 80, 95, contentWidth - 171 - 70 - 80 - 95]
   const pages: string[] = []
   let commands: string[] = []
-  let y = pageHeight - margin
+  let y = contentTop
 
   function rawText(value: string | number, x: number, textY: number, size = 10, font = "F1") {
     commands.push(`BT /${font} ${size} Tf ${x} ${textY} Td (${sanitizePdfText(value)}) Tj ET`)
@@ -236,7 +253,7 @@ function buildReportPdf(report: ReportClientProps["report"]) {
   function newPage() {
     commitPage()
     commands = []
-    y = pageHeight - margin
+    y = contentTop
     addPageHeader()
   }
 
@@ -304,41 +321,41 @@ function buildReportPdf(report: ReportClientProps["report"]) {
   text(`Tanggal Export: ${formatDateTime(new Date())}`)
 
   section("Ringkasan")
-  tableRow(["Metrik", "Nilai", "Metrik", "Nilai"], [120, 120, 135, 120], { header: true })
-  tableRow(["Omzet", formatRupiah(report.metrics.revenue), "Profit", formatRupiah(report.metrics.profit)], [120, 120, 135, 120])
-  tableRow(["Modal Snapshot", formatRupiah(report.metrics.buyPrice), "Total Order", report.metrics.orderCount], [120, 120, 135, 120])
+  tableRow(["Metrik", "Nilai", "Metrik", "Nilai"], summaryWidths, { header: true })
+  tableRow(["Omzet", formatRupiah(report.metrics.revenue), "Profit", formatRupiah(report.metrics.profit)], summaryWidths)
+  tableRow(["Modal Snapshot", formatRupiah(report.metrics.buyPrice), "Total Order", report.metrics.orderCount], summaryWidths)
   tableRow(
     ["Average Order", formatRupiah(report.metrics.averageOrderValue), "Pembelian Material", formatRupiah(report.metrics.purchaseTotal)],
-    [120, 120, 135, 120]
+    summaryWidths
   )
-  tableRow(["Jumlah Pembelian", report.metrics.purchaseCount, "Nilai Stok Estimasi", formatRupiah(report.metrics.inventoryValue)], [120, 120, 135, 120])
+  tableRow(["Jumlah Pembelian", report.metrics.purchaseCount, "Nilai Stok Estimasi", formatRupiah(report.metrics.inventoryValue)], summaryWidths)
 
   section("Status Order")
-  tableRow(["Status", "Jumlah", "Total"], [180, 90, 170], { header: true, alignRight: [1, 2] })
+  tableRow(["Status", "Jumlah", "Total"], statusWidths, { header: true, alignRight: [1, 2] })
   if (report.statusSummary.length === 0) {
     emptyTableText()
   } else {
     report.statusSummary.forEach((status) => {
-      tableRow([getOrderStatusLabel(status.status), status.count, formatRupiah(status.total)], [180, 90, 170], {
+      tableRow([getOrderStatusLabel(status.status), status.count, formatRupiah(status.total)], statusWidths, {
         alignRight: [1, 2],
       })
     })
   }
 
   section("Menu Terlaris")
-  tableRow(["Menu", "Qty", "Omzet", "Profit"], [195, 55, 110, 110], { header: true, alignRight: [1, 2, 3] })
+  tableRow(["Menu", "Qty", "Omzet", "Profit"], topMenuWidths, { header: true, alignRight: [1, 2, 3] })
   if (report.topMenus.length === 0) {
     emptyTableText()
   } else {
     report.topMenus.slice(0, 10).forEach((menu) => {
-      tableRow([menu.name, menu.quantity, formatRupiah(menu.revenue), formatRupiah(menu.profit)], [195, 55, 110, 110], {
+      tableRow([menu.name, menu.quantity, formatRupiah(menu.revenue), formatRupiah(menu.profit)], topMenuWidths, {
         alignRight: [1, 2, 3],
       })
     })
   }
 
   section("Pemakaian Material")
-  tableRow(["Material", "Satuan", "Amount", "Estimasi Nilai"], [180, 75, 85, 130], { header: true, alignRight: [2, 3] })
+  tableRow(["Material", "Satuan", "Amount", "Estimasi Nilai"], materialUsageWidths, { header: true, alignRight: [2, 3] })
   if (report.materialUsage.length === 0) {
     emptyTableText()
   } else {
@@ -350,28 +367,28 @@ function buildReportPdf(report: ReportClientProps["report"]) {
           material.amount.toLocaleString("id-ID"),
           formatRupiah(material.estimatedValue),
         ],
-        [180, 75, 85, 130],
+        materialUsageWidths,
         { alignRight: [2, 3] }
       )
     })
   }
 
   section("Ringkasan Transaksi Material")
-  tableRow(["Tipe", "Jumlah", "Total Amount"], [180, 90, 150], { header: true, alignRight: [1, 2] })
+  tableRow(["Tipe", "Jumlah", "Total Amount"], materialTransactionWidths, { header: true, alignRight: [1, 2] })
   if (report.materialTransactionSummary.length === 0) {
     emptyTableText()
   } else {
     report.materialTransactionSummary.forEach((summary) => {
       tableRow(
-        [getMaterialTransactionTypeLabel(summary.type), summary.count, summary.amount.toLocaleString("id-ID")],
-        [180, 90, 150],
+        [getMaterialTransactionTypeLabel(summary.type), summary.count, formatSignedAmount(summary.amount)],
+        materialTransactionWidths,
         { alignRight: [1, 2] }
       )
     })
   }
 
   section("Inventory Saat Ini")
-  tableRow(["Material", "Satuan", "Stok", "Harga Beli", "Nilai"], [155, 65, 70, 105, 105], {
+  tableRow(["Material", "Satuan", "Stok", "Harga Beli", "Nilai"], inventoryWidths, {
     header: true,
     alignRight: [2, 3, 4],
   })
@@ -387,7 +404,7 @@ function buildReportPdf(report: ReportClientProps["report"]) {
           formatRupiah(material.recordedBuyPrice),
           formatRupiah(material.estimatedValue),
         ],
-        [155, 65, 70, 105, 105],
+        inventoryWidths,
         { alignRight: [2, 3, 4] }
       )
     })
@@ -583,7 +600,7 @@ export function ReportClient({ report }: ReportClientProps) {
             <div key={summary.type} className="rounded-lg border border-zinc-200 p-3">
               <p className="text-sm font-medium text-zinc-900">{getMaterialTransactionTypeLabel(summary.type)}</p>
               <p className="mt-1 text-xl font-semibold text-zinc-900">{summary.count}</p>
-              <p className="text-sm text-zinc-600">Total amount: {summary.amount}</p>
+              <p className="text-sm text-zinc-600">Total amount: {formatSignedAmount(summary.amount)}</p>
             </div>
           ))}
         </div>

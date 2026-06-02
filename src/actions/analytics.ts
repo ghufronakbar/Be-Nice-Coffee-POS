@@ -447,7 +447,7 @@ export async function getReportDataAction(input: DateRangeInput) {
 
     if (current) {
       current.count += 1
-      current.amount += Math.abs(Number(transaction.amount))
+      current.amount += Number(transaction.amount)
     }
   }
 
