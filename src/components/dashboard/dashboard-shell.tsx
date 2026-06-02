@@ -21,7 +21,6 @@ import {
 } from "lucide-react"
 
 import { logoutAction } from "@/actions/user"
-import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Sidebar,
@@ -76,6 +75,7 @@ function isActivePath(pathname: string, href: string) {
 
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname()
+  const isAccountActive = isActivePath(pathname, "/dashboard/account")
 
   const initialGroupOpenState = useMemo(() => {
     return Object.fromEntries(
@@ -181,18 +181,32 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
         <SidebarSeparator />
 
-        <SidebarFooter className="p-3">
+        <SidebarFooter className="gap-2 p-3">
           <div className="rounded-lg bg-zinc-100 px-3 py-2 group-data-[collapsible=icon]:hidden">
             <p className="text-sm font-semibold text-zinc-900">{user.name}</p>
             <p className="text-xs text-zinc-600">{user.email}</p>
           </div>
 
-          <form action={logoutAction}>
-            <Button className={cn("w-full", "group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:px-0")} variant="outline" type="submit">
-              <LogOut className="size-4" />
-              <span className="group-data-[collapsible=icon]:hidden">Keluar</span>
-            </Button>
-          </form>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isAccountActive} tooltip="Akun Saya">
+                <Link href="/dashboard/account">
+                  <UserCircle className="size-4" />
+                  <span>Akun Saya</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <form action={logoutAction}>
+                <SidebarMenuButton asChild tooltip="Keluar">
+                  <button type="submit" className="text-red-600 hover:text-red-700">
+                    <LogOut className="size-4" />
+                    <span>Keluar</span>
+                  </button>
+                </SidebarMenuButton>
+              </form>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
         </Sidebar>
 

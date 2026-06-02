@@ -76,7 +76,6 @@ export const DASHBOARD_NAVIGATION: DashboardNavigationSection[] = [
       { href: "/dashboard/material", label: "Material" },
       { href: "/dashboard/customer", label: "Customer" },
       { href: "/dashboard/user", label: "Pengguna" },
-      { href: "/dashboard/account", label: "Akun Saya" },
     ],
   },
   {
