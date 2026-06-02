@@ -7,6 +7,11 @@ import { z } from "zod"
 import { createMaterialQuickSchema } from "@/components/menu/menu-form-schema"
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/constants/constants"
 import { prisma } from "@/lib/prisma"
+import {
+  ensureMaterialsExistForTransaction,
+  refreshMaterialStockSnapshot,
+  toDecimal,
+} from "@/lib/inventory"
 
 const pageSizeEnum = z.enum(PAGE_SIZE_OPTIONS.map(String) as [string, ...string[]])
 
@@ -468,7 +473,7 @@ const optionalNoteSchema = z
 const materialPurchaseItemSchema = z.object({
   materialId: z.number().int().positive("Material tidak valid"),
   amount: z.number().positive("Jumlah material harus lebih besar dari 0"),
-  price: z.number().min(0, "Harga tidak boleh negatif"),
+  total: z.number().min(0, "Total harga tidak boleh negatif"),
 })
 
 const materialPurchaseFormSchema = z
@@ -532,6 +537,10 @@ export type MaterialTransactionListRow = {
     menuName: string
     orderNote: string | null
   } | null
+}
+
+export type MaterialTransactionDetail = MaterialTransactionListRow & {
+  updatedAt: Date
 }
 
 export type MaterialTransactionListResult = {
@@ -623,122 +632,6 @@ export type MaterialAdjustmentMutationResult = {
   success: boolean
   message: string
   adjustmentId?: number
-}
-
-function toDecimal(value: number | Prisma.Decimal) {
-  return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
-}
-
-async function ensureMaterialsExistForTransaction(tx: Prisma.TransactionClient, materialIds: number[]) {
-  const uniqueMaterialIds = [...new Set(materialIds)]
-
-  const totalMaterials = await tx.material.count({
-    where: {
-      id: {
-        in: uniqueMaterialIds,
-      },
-      deletedAt: null,
-    },
-  })
-
-  return totalMaterials === uniqueMaterialIds.length
-}
-
-async function refreshMaterialStockSnapshot(
-  tx: Prisma.TransactionClient,
-  materialIds: number[]
-) {
-  const uniqueMaterialIds = [...new Set(materialIds)]
-
-  if (uniqueMaterialIds.length === 0) {
-    return
-  }
-
-  const materials = await tx.material.findMany({
-    where: {
-      id: {
-        in: uniqueMaterialIds,
-      },
-      deletedAt: null,
-    },
-    select: {
-      id: true,
-      materialTransactions: {
-        where: {
-          deletedAt: null,
-        },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        select: {
-          type: true,
-          amount: true,
-          materialPurchaseItem: {
-            select: {
-              amount: true,
-              total: true,
-              deletedAt: true,
-              materialPurchase: {
-                select: {
-                  deletedAt: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-
-  for (const material of materials) {
-    let stockAmount = new Prisma.Decimal(0)
-    let stockValue = new Prisma.Decimal(0)
-
-    for (const transaction of material.materialTransactions) {
-      if (transaction.type === "PURCHASE") {
-        const purchaseItem = transaction.materialPurchaseItem
-
-        if (
-          purchaseItem &&
-          purchaseItem.deletedAt === null &&
-          purchaseItem.materialPurchase.deletedAt === null
-        ) {
-          stockAmount = stockAmount.plus(toDecimal(purchaseItem.amount))
-          stockValue = stockValue.plus(toDecimal(purchaseItem.total))
-          continue
-        }
-      }
-
-      const amountDelta = toDecimal(transaction.amount)
-      const averageCostBefore =
-        stockAmount.greaterThan(0) && stockValue.greaterThan(0)
-          ? stockValue.div(stockAmount)
-          : new Prisma.Decimal(0)
-
-      stockAmount = stockAmount.plus(amountDelta)
-      stockValue = stockValue.plus(averageCostBefore.mul(amountDelta))
-
-      if (stockAmount.lessThanOrEqualTo(0)) {
-        stockAmount = new Prisma.Decimal(0)
-        stockValue = new Prisma.Decimal(0)
-      } else if (stockValue.lessThan(0)) {
-        stockValue = new Prisma.Decimal(0)
-      }
-    }
-
-    const recordedBuyPrice =
-      stockAmount.greaterThan(0) && stockValue.greaterThan(0)
-        ? stockValue.div(stockAmount)
-        : new Prisma.Decimal(0)
-
-    await tx.material.update({
-      where: {
-        id: material.id,
-      },
-      data: {
-        recordedAmount: stockAmount,
-        recordedBuyPrice,
-      },
-    })
-  }
 }
 
 export async function getMaterialTransactionListAction(
@@ -912,6 +805,104 @@ export async function getMaterialTransactionListAction(
   }
 }
 
+export async function getMaterialTransactionDetailAction(
+  transactionId: number
+): Promise<MaterialTransactionDetail | null> {
+  const transaction = await prisma.materialTransaction.findFirst({
+    where: {
+      id: transactionId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      type: true,
+      amount: true,
+      note: true,
+      createdAt: true,
+      updatedAt: true,
+      materialId: true,
+      material: {
+        select: {
+          name: true,
+          unit: true,
+        },
+      },
+      materialPurchaseItem: {
+        select: {
+          amount: true,
+          price: true,
+          total: true,
+          materialPurchase: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              total: true,
+            },
+          },
+        },
+      },
+      orderItem: {
+        select: {
+          id: true,
+          amount: true,
+          price: true,
+          total: true,
+          menu: {
+            select: {
+              name: true,
+            },
+          },
+          order: {
+            select: {
+              id: true,
+              status: true,
+              note: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!transaction) {
+    return null
+  }
+
+  return {
+    id: transaction.id,
+    materialId: transaction.materialId,
+    materialName: transaction.material.name,
+    materialUnit: transaction.material.unit,
+    type: transaction.type,
+    amount: Number(transaction.amount),
+    note: transaction.note,
+    createdAt: transaction.createdAt,
+    updatedAt: transaction.updatedAt,
+    purchase: transaction.materialPurchaseItem
+      ? {
+          purchaseId: transaction.materialPurchaseItem.materialPurchase.id,
+          invoiceNumber: transaction.materialPurchaseItem.materialPurchase.invoiceNumber,
+          total: Number(transaction.materialPurchaseItem.materialPurchase.total),
+          itemAmount: Number(transaction.materialPurchaseItem.amount),
+          itemPrice: Number(transaction.materialPurchaseItem.price),
+          itemTotal: Number(transaction.materialPurchaseItem.total),
+        }
+      : null,
+    sell: transaction.orderItem
+      ? {
+          orderId: transaction.orderItem.order.id,
+          orderStatus: transaction.orderItem.order.status,
+          orderItemId: transaction.orderItem.id,
+          orderItemAmount: transaction.orderItem.amount,
+          orderItemPrice: Number(transaction.orderItem.price),
+          orderItemTotal: Number(transaction.orderItem.total),
+          menuName: transaction.orderItem.menu.name,
+          orderNote: transaction.orderItem.order.note,
+        }
+      : null,
+  }
+}
+
 export async function getMaterialPurchaseListAction(
   queryInput: MaterialPurchaseListQueryInput
 ): Promise<MaterialPurchaseListResult> {
@@ -1062,6 +1053,123 @@ export async function getMaterialPurchaseDetailAction(
   }
 }
 
+export async function createMaterialPurchaseAction(
+  values: z.input<typeof materialPurchaseFormSchema>
+): Promise<MaterialPurchaseMutationResult> {
+  const validatedValues = materialPurchaseFormSchema.safeParse(values)
+
+  if (!validatedValues.success) {
+    return {
+      success: false,
+      message: validatedValues.error.issues[0]?.message ?? "Data pembelian material tidak valid",
+    }
+  }
+
+  let purchaseId: number | undefined
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const materialsExist = await ensureMaterialsExistForTransaction(
+        tx,
+        validatedValues.data.items.map((item) => item.materialId)
+      )
+
+      if (!materialsExist) {
+        throw new Error("MATERIAL_NOT_FOUND")
+      }
+
+      const purchase = await tx.materialPurchase.create({
+        data: {
+          invoiceNumber: validatedValues.data.invoiceNumber,
+          note: validatedValues.data.note ?? null,
+          total: new Prisma.Decimal(0),
+        },
+        select: {
+          id: true,
+        },
+      })
+
+      purchaseId = purchase.id
+      let purchaseTotal = new Prisma.Decimal(0)
+
+      for (const item of validatedValues.data.items) {
+        const itemAmount = toDecimal(item.amount)
+        const itemTotal = toDecimal(item.total)
+        const itemPrice = itemTotal.div(itemAmount)
+
+        purchaseTotal = purchaseTotal.plus(itemTotal)
+
+        const createdPurchaseItem = await tx.materialPurchaseItem.create({
+          data: {
+            materialPurchaseId: purchase.id,
+            materialId: item.materialId,
+            amount: itemAmount,
+            price: itemPrice,
+            total: itemTotal,
+          },
+          select: {
+            id: true,
+          },
+        })
+
+        await tx.materialTransaction.create({
+          data: {
+            materialId: item.materialId,
+            type: "PURCHASE",
+            amount: itemAmount,
+            note: validatedValues.data.note ?? null,
+            materialPurchaseItemId: createdPurchaseItem.id,
+          },
+        })
+      }
+
+      await tx.materialPurchase.update({
+        where: {
+          id: purchase.id,
+        },
+        data: {
+          total: purchaseTotal,
+        },
+      })
+
+      await refreshMaterialStockSnapshot(
+        tx,
+        validatedValues.data.items.map((item) => item.materialId)
+      )
+    })
+  } catch (error) {
+    if (error instanceof Error && error.message === "MATERIAL_NOT_FOUND") {
+      return {
+        success: false,
+        message: "Material pada pembelian tidak ditemukan",
+      }
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return {
+        success: false,
+        message: "Nomor invoice sudah digunakan",
+      }
+    }
+
+    return {
+      success: false,
+      message: "Gagal menambahkan pembelian material",
+    }
+  }
+
+  revalidatePath("/dashboard/material")
+  revalidatePath("/dashboard/material/purchase")
+  revalidatePath("/dashboard/material/purchase/create")
+  revalidatePath("/dashboard/material/transaction")
+
+  return {
+    success: true,
+    message: "Pembelian material berhasil ditambahkan",
+    purchaseId,
+  }
+}
+
 export async function updateMaterialPurchaseAction(
   purchaseId: number,
   values: z.input<typeof materialPurchaseFormSchema>
@@ -1148,8 +1256,8 @@ export async function updateMaterialPurchaseAction(
 
       for (const item of validatedValues.data.items) {
         const itemAmount = toDecimal(item.amount)
-        const itemPrice = toDecimal(item.price)
-        const itemTotal = itemAmount.mul(itemPrice)
+        const itemTotal = toDecimal(item.total)
+        const itemPrice = itemTotal.div(itemAmount)
 
         purchaseTotal = purchaseTotal.plus(itemTotal)
 
@@ -1236,6 +1344,7 @@ export async function deleteMaterialPurchaseAction(
     },
     select: {
       id: true,
+      invoiceNumber: true,
       materialPurchaseItems: {
         where: {
           deletedAt: null,
@@ -1290,6 +1399,7 @@ export async function deleteMaterialPurchaseAction(
         id: purchaseId,
       },
       data: {
+        invoiceNumber: `${purchase.invoiceNumber}-${Date.now()}-deleted`,
         deletedAt: now,
       },
     })

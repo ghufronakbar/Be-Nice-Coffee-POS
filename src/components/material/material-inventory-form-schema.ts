@@ -8,7 +8,7 @@ const optionalNoteSchema = z
 export const materialPurchaseItemFormSchema = z.object({
   materialId: z.number().int().positive("Material tidak valid"),
   amount: z.number().positive("Jumlah material harus lebih besar dari 0"),
-  price: z.number().min(0, "Harga tidak boleh negatif"),
+  total: z.number().min(0, "Total harga tidak boleh negatif"),
 })
 
 export const materialPurchaseFormSchema = z

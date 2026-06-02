@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { EyeIcon } from "lucide-react"
 
 import { type MaterialTransactionListRow } from "@/actions/material"
@@ -152,7 +153,14 @@ export function MaterialTransactionListClient({ items }: MaterialTransactionList
 
                 {selectedTransaction.purchase ? (
                   <div className="rounded-lg border border-zinc-200 p-3">
-                    <p className="text-sm font-semibold text-zinc-900">Relasi Pembelian</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-zinc-900">Relasi Pembelian</p>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/dashboard/material/transaction/${selectedTransaction.id}`}>
+                          Buka Detail Transaksi
+                        </Link>
+                      </Button>
+                    </div>
                     <div className="mt-2 space-y-1 text-sm text-zinc-700">
                       <p>Purchase ID: #{selectedTransaction.purchase.purchaseId}</p>
                       <p>Invoice: {selectedTransaction.purchase.invoiceNumber}</p>
@@ -166,7 +174,14 @@ export function MaterialTransactionListClient({ items }: MaterialTransactionList
 
                 {selectedTransaction.sell ? (
                   <div className="rounded-lg border border-zinc-200 p-3">
-                    <p className="text-sm font-semibold text-zinc-900">Relasi Penjualan</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-zinc-900">Relasi Penjualan</p>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/dashboard/material/transaction/${selectedTransaction.id}`}>
+                          Buka Detail Transaksi
+                        </Link>
+                      </Button>
+                    </div>
                     <div className="mt-2 space-y-1 text-sm text-zinc-700">
                       <p>Order ID: #{selectedTransaction.sell.orderId}</p>
                       <p>Status Order: {getOrderStatusLabel(selectedTransaction.sell.orderStatus)}</p>

@@ -1,0 +1,25 @@
+import { notFound } from "next/navigation"
+
+import { getOrderDetailAction } from "@/actions/order"
+import { PointOfSalesInvoiceClient } from "@/components/order/point-of-sales-invoice-client"
+
+type PointOfSalesInvoicePageProps = {
+  params: Promise<{ id: string }>
+}
+
+export default async function PointOfSalesInvoicePage({ params }: PointOfSalesInvoicePageProps) {
+  const { id } = await params
+  const orderId = Number(id)
+
+  if (Number.isNaN(orderId)) {
+    notFound()
+  }
+
+  const order = await getOrderDetailAction(orderId)
+
+  if (!order) {
+    notFound()
+  }
+
+  return <PointOfSalesInvoiceClient order={order} />
+}

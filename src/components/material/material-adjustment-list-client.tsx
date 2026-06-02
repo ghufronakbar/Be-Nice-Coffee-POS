@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
@@ -65,22 +65,12 @@ export function MaterialAdjustmentListClient({ items, materials }: MaterialAdjus
     },
   })
 
-  useEffect(() => {
-    if (!isModalOpen) {
-      form.reset({
-        materialId: materials[0]?.id ?? 0,
-        amount: 0,
-        note: "",
-      })
-      setEditingRow(null)
-    }
-  }, [form, isModalOpen, materials])
-
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button
           type="button"
+          disabled={materials.length === 0}
           onClick={() => {
             setModalMode("create")
             setIsModalOpen(true)
@@ -90,6 +80,12 @@ export function MaterialAdjustmentListClient({ items, materials }: MaterialAdjus
           Tambah Penyesuaian
         </Button>
       </div>
+
+      {materials.length === 0 ? (
+        <p className="text-sm text-zinc-600">
+          Tambah material terlebih dahulu sebelum membuat transaksi penyesuaian.
+        </p>
+      ) : null}
 
       <div className="rounded-xl border border-zinc-200 bg-white">
         <Table>
@@ -179,7 +175,21 @@ export function MaterialAdjustmentListClient({ items, materials }: MaterialAdjus
         </Table>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(nextOpen) => {
+          setIsModalOpen(nextOpen)
+
+          if (!nextOpen) {
+            form.reset({
+              materialId: materials[0]?.id ?? 0,
+              amount: 0,
+              note: "",
+            })
+            setEditingRow(null)
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -197,10 +207,25 @@ export function MaterialAdjustmentListClient({ items, materials }: MaterialAdjus
               className="space-y-4"
               onSubmit={form.handleSubmit((values) => {
                 startTransition(async () => {
-                  const result =
-                    modalMode === "create"
-                      ? await createMaterialAdjustmentAction(values)
-                      : await updateMaterialAdjustmentAction(editingRow!.id, values)
+                  let result
+
+                  if (modalMode === "edit" && !editingRow) {
+                    toast.error("Data penyesuaian tidak ditemukan")
+                    return
+                  }
+
+                  if (modalMode === "create") {
+                    result = await createMaterialAdjustmentAction(values)
+                  } else {
+                    const targetRow = editingRow
+
+                    if (!targetRow) {
+                      toast.error("Data penyesuaian tidak ditemukan")
+                      return
+                    }
+
+                    result = await updateMaterialAdjustmentAction(targetRow.id, values)
+                  }
 
                   if (!result.success) {
                     toast.error(result.message)

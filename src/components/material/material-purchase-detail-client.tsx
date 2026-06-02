@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PlusIcon, Trash2Icon } from "lucide-react"
-import { useFieldArray, useForm } from "react-hook-form"
+import { useFieldArray, useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
 import {
@@ -45,7 +45,7 @@ export function MaterialPurchaseDetailClient({ purchase, materials }: MaterialPu
       items: purchase.items.map((item) => ({
         materialId: item.materialId,
         amount: item.amount,
-        price: item.price,
+        total: item.total,
       })),
     },
   })
@@ -55,13 +55,15 @@ export function MaterialPurchaseDetailClient({ purchase, materials }: MaterialPu
     name: "items",
   })
 
-  const watchedItems = form.watch("items")
+  const watchedItems = useWatch({
+    control: form.control,
+    name: "items",
+  })
 
   const recalculatedTotal = useMemo(() => {
-    return watchedItems.reduce((totalAmount, item) => {
-      const amount = Number.isFinite(item.amount) ? item.amount : 0
-      const price = Number.isFinite(item.price) ? item.price : 0
-      return totalAmount + amount * price
+    return (watchedItems ?? []).reduce((totalAmount, item) => {
+      const total = Number.isFinite(item.total) ? item.total : 0
+      return totalAmount + total
     }, 0)
   }, [watchedItems])
 
@@ -174,7 +176,7 @@ export function MaterialPurchaseDetailClient({ purchase, materials }: MaterialPu
                     append({
                       materialId: materials[0]?.id ?? 0,
                       amount: 1,
-                      price: 0,
+                      total: 0,
                     })
                   }}
                 >
@@ -184,8 +186,9 @@ export function MaterialPurchaseDetailClient({ purchase, materials }: MaterialPu
               </div>
 
               {fields.map((field, index) => {
+                const selectedMaterialId = watchedItems?.[index]?.materialId
                 const selectedMaterial = materials.find(
-                  (material) => material.id === form.watch(`items.${index}.materialId`)
+                  (material) => material.id === selectedMaterialId
                 )
 
                 return (
@@ -241,10 +244,10 @@ export function MaterialPurchaseDetailClient({ purchase, materials }: MaterialPu
                       <div className="md:col-span-3">
                         <FormField
                           control={form.control}
-                          name={`items.${index}.price`}
+                          name={`items.${index}.total`}
                           render={({ field: itemField }) => (
                             <FormItem>
-                              <FormLabel>Harga Satuan</FormLabel>
+                              <FormLabel>Total Harga</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
@@ -275,6 +278,9 @@ export function MaterialPurchaseDetailClient({ purchase, materials }: MaterialPu
 
                     <p className="mt-2 text-xs text-zinc-500">
                       Satuan: {selectedMaterial ? getMaterialUnitLabel(selectedMaterial.unit) : "-"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Contoh: isi jumlah 10000 ml dan total harga Rp 10000.
                     </p>
                   </div>
                 )
