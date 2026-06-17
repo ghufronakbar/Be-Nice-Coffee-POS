@@ -10,10 +10,39 @@ import { getDashboardOverviewAction } from "@/actions/analytics"
 import { DashboardSalesChart } from "@/components/dashboard/dashboard-sales-chart"
 import { Button } from "@/components/ui/button"
 import { getMaterialTransactionTypeLabel, getMaterialUnitLabel, getOrderStatusLabel } from "@/constants/constants"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 
 export default async function DashboardPage() {
+  const user = await requireDashboardAccess("accessOverviewRead")
+
   const overview = await getDashboardOverviewAction()
+  const shortcuts = [
+    {
+      href: "/dashboard/order/point-of-sales",
+      icon: ShoppingCartIcon,
+      label: "Buka POS",
+      visible: user.access.accessPointOfSalesWrite,
+    },
+    {
+      href: "/dashboard/material/purchase/create",
+      icon: ReceiptTextIcon,
+      label: "Tambah Pembelian",
+      visible: user.access.accessMaterialPurchaseWrite,
+    },
+    {
+      href: "/dashboard/material/adjustment",
+      icon: SlidersHorizontalIcon,
+      label: "Adjustment Stok",
+      visible: user.access.accessMaterialAdjustmentRead,
+    },
+    {
+      href: "/dashboard/order?status=PENDING",
+      icon: ClipboardListIcon,
+      label: "Order Pending",
+      visible: user.access.accessOrderRead,
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -30,10 +59,16 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
-        <ShortcutButton href="/dashboard/order/point-of-sales" icon={ShoppingCartIcon} label="Buka POS" />
-        <ShortcutButton href="/dashboard/material/purchase/create" icon={ReceiptTextIcon} label="Tambah Pembelian" />
-        <ShortcutButton href="/dashboard/material/adjustment" icon={SlidersHorizontalIcon} label="Adjustment Stok" />
-        <ShortcutButton href="/dashboard/order?status=PENDING" icon={ClipboardListIcon} label="Order Pending" />
+        {shortcuts
+          .filter((shortcut) => shortcut.visible)
+          .map((shortcut) => (
+            <ShortcutButton
+              key={shortcut.href}
+              href={shortcut.href}
+              icon={shortcut.icon}
+              label={shortcut.label}
+            />
+          ))}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">

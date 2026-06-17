@@ -2,12 +2,15 @@ import { notFound } from "next/navigation"
 
 import { getCustomerDetailAction } from "@/actions/customer"
 import { CustomerDetailClient } from "@/components/customer/customer-detail-client"
+import { requireDashboardAccess } from "@/lib/authorization"
 
 type CustomerDetailPageProps = {
   params: Promise<{ id: string }>
 }
 
 export default async function CustomerDetailPage({ params }: CustomerDetailPageProps) {
+  await requireDashboardAccess("accessCustomerRead")
+
   const { id } = await params
   const customerId = Number(id)
 

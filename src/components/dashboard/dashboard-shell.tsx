@@ -40,12 +40,14 @@ import {
 } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { APP_NAME, DASHBOARD_NAVIGATION } from "@/constants/constants"
+import type { AccessMap } from "@/lib/access-control"
 import { cn } from "@/lib/utils"
 
 type DashboardShellProps = {
   user: {
     name: string
     email: string
+    access: AccessMap
   }
   children: React.ReactNode
 }
@@ -76,12 +78,18 @@ function isActivePath(pathname: string, href: string) {
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname()
   const isAccountActive = isActivePath(pathname, "/dashboard/account")
+  const navigation = useMemo(() => {
+    return DASHBOARD_NAVIGATION.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => user.access[item.access]),
+    })).filter((section) => section.items.length > 0)
+  }, [user.access])
 
   const initialGroupOpenState = useMemo(() => {
     return Object.fromEntries(
-      DASHBOARD_NAVIGATION.filter((section) => section.items.length > 1).map((section) => [section.title, true])
+      navigation.filter((section) => section.items.length > 1).map((section) => [section.title, true])
     )
-  }, [])
+  }, [navigation])
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialGroupOpenState)
 
@@ -97,7 +105,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         </SidebarHeader>
 
         <SidebarContent className="gap-2 px-2 py-3">
-          {DASHBOARD_NAVIGATION.map((section) => {
+          {navigation.map((section) => {
             const hasMultipleItems = section.items.length > 1
 
             if (hasMultipleItems) {

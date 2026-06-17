@@ -5,6 +5,7 @@ import {
 import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
 import { MaterialAdjustmentListClient } from "@/components/material/material-adjustment-list-client"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const MATERIAL_ADJUSTMENT_PATHNAME = "/dashboard/material/adjustment"
@@ -20,6 +21,8 @@ type MaterialAdjustmentPageProps = {
 }
 
 export default async function MaterialAdjustmentPage({ searchParams }: MaterialAdjustmentPageProps) {
+  await requireDashboardAccess("accessMaterialAdjustmentRead")
+
   const resolvedSearchParams = await searchParams
 
   const [adjustmentList, materials] = await Promise.all([

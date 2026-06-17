@@ -2,6 +2,7 @@ import { getCustomerListAction } from "@/actions/customer"
 import { CustomerListClient } from "@/components/customer/customer-list-client"
 import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const CUSTOMER_LIST_PATHNAME = "/dashboard/customer"
@@ -18,6 +19,8 @@ type CustomerListPageProps = {
 }
 
 export default async function CustomerListPage({ searchParams }: CustomerListPageProps) {
+  await requireDashboardAccess("accessCustomerRead")
+
   const resolvedSearchParams = await searchParams
 
   const sortByParam = parseSingleSearchParam(resolvedSearchParams.sortBy) as

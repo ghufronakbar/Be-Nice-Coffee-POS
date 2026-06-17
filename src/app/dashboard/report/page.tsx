@@ -2,6 +2,7 @@ import { getReportDataAction } from "@/actions/analytics"
 import { ReportClient } from "@/components/report/report-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 type ReportPageProps = {
@@ -9,6 +10,8 @@ type ReportPageProps = {
 }
 
 export default async function ReportPage({ searchParams }: ReportPageProps) {
+  await requireDashboardAccess("accessReportRead")
+
   const resolvedSearchParams = await searchParams
   const startDate = parseSingleSearchParam(resolvedSearchParams.startDate)
   const endDate = parseSingleSearchParam(resolvedSearchParams.endDate)

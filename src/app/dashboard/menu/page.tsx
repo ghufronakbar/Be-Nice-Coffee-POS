@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
@@ -30,6 +31,8 @@ type MenuListPageProps = {
 }
 
 export default async function MenuListPage({ searchParams }: MenuListPageProps) {
+  await requireDashboardAccess("accessMenuRead")
+
   const resolvedSearchParams = await searchParams
   const sortByParam = parseSingleSearchParam(resolvedSearchParams.sortBy) as
     | "name"

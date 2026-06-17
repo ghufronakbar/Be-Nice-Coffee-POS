@@ -5,6 +5,7 @@ import { z } from "zod"
 import { redirect } from "next/navigation"
 
 import { clearSession, createSession, getSessionUser } from "@/lib/auth"
+import { resolveDashboardLandingPath } from "@/lib/access-control"
 import { prisma } from "@/lib/prisma"
 
 type FormFieldErrors = {
@@ -94,7 +95,7 @@ export async function loginAction(
   }
 
   await createSession(user.id)
-  redirect("/dashboard")
+  redirect(resolveDashboardLandingPath(user))
 }
 
 export async function firstTimeSetupAction(
@@ -134,11 +135,12 @@ export async function firstTimeSetupAction(
       name: validatedFields.data.name,
       email: validatedFields.data.email,
       password: hashedPassword,
+      isSuperAdmin: true,
     },
   })
 
   await createSession(user.id)
-  redirect("/dashboard")
+  redirect(resolveDashboardLandingPath(user))
 }
 
 export async function logoutAction() {

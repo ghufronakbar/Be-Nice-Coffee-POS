@@ -2,6 +2,7 @@ import { getUserListAction } from "@/actions/user-management"
 import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
 import { UserListClient } from "@/components/user/user-list-client"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const USER_LIST_PATHNAME = "/dashboard/user"
@@ -18,6 +19,8 @@ type UserListPageProps = {
 }
 
 export default async function UserListPage({ searchParams }: UserListPageProps) {
+  await requireDashboardAccess("accessUserRead")
+
   const resolvedSearchParams = await searchParams
 
   const sortByParam = parseSingleSearchParam(resolvedSearchParams.sortBy) as

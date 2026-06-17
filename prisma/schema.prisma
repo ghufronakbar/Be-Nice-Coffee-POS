@@ -17,7 +17,34 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+
+  // access control
+  isSuperAdmin Boolean @default(false)
+  // master data
+  accessMenuRead      Boolean @default(false)
+  accessMenuWrite     Boolean @default(false)
+  accessMaterialRead  Boolean @default(false)
+  accessMaterialWrite Boolean @default(false)
+  accessCustomerRead  Boolean @default(false)
+  accessCustomerWrite Boolean @default(false)
+  accessUserRead      Boolean @default(false)
+
+  // inventory
+  accessMaterialTransactionRead Boolean @default(false)
+  accessMaterialPurchaseRead    Boolean @default(false)
+  accessMaterialPurchaseWrite   Boolean @default(false)
+  accessMaterialAdjustmentRead  Boolean @default(false)
+  accessMaterialAdjustmentWrite Boolean @default(false)
+
+  // sales
+  accessOrderRead         Boolean @default(false)
+  accessOrderWrite        Boolean @default(false)
+  accessPointOfSalesWrite Boolean @default(false)
+  accessReportRead        Boolean @default(false)
+  accessOverviewRead      Boolean @default(false)
 }
+
+// note accessUserWrite hanya untuk user dengan id paling kecil/createdAt paling awal (jadi tidak perlu ada kolom)
 
 // customer 
 model Customer {

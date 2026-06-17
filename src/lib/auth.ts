@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 
 import { SESSION_MAX_AGE_SECONDS } from "@/constants/constants"
 import { env } from "@/constants/env"
+import { ACCESS_SELECT, resolveUserAccess } from "@/lib/access-control"
 import { prisma } from "@/lib/prisma"
 
 function buildSessionSignature(payload: string) {
@@ -73,7 +74,7 @@ export async function getSessionUser() {
     return null
   }
 
-  return prisma.user.findFirst({
+  const user = await prisma.user.findFirst({
     where: {
       id: session.userId,
       deletedAt: null,
@@ -82,8 +83,19 @@ export async function getSessionUser() {
       id: true,
       name: true,
       email: true,
+      isSuperAdmin: true,
+      ...ACCESS_SELECT,
     },
   })
+
+  if (!user) {
+    return null
+  }
+
+  return {
+    ...user,
+    access: resolveUserAccess(user),
+  }
 }
 
 export async function requireSessionUser() {

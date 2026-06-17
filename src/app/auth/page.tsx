@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation"
 
 import { getAuthSetupState } from "@/actions/user"
+import { resolveDashboardLandingPath } from "@/lib/access-control"
 
 export default async function AuthPage() {
   const { hasAnyUser, sessionUser } = await getAuthSetupState()
 
   if (sessionUser) {
-    redirect("/dashboard")
+    redirect(resolveDashboardLandingPath(sessionUser))
   }
 
   if (!hasAnyUser) {

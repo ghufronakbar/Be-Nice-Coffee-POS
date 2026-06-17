@@ -8,6 +8,7 @@ import {
   getMaterialUnitLabel,
   getOrderStatusLabel,
 } from "@/constants/constants"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 
 type MaterialTransactionDetailPageProps = {
@@ -17,6 +18,8 @@ type MaterialTransactionDetailPageProps = {
 export default async function MaterialTransactionDetailPage({
   params,
 }: MaterialTransactionDetailPageProps) {
+  await requireDashboardAccess("accessMaterialTransactionRead")
+
   const { id } = await params
   const transactionId = Number(id)
 

@@ -2,6 +2,7 @@ import { getMaterialListAction } from "@/actions/material"
 import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
 import { MaterialListClient } from "@/components/material/material-list-client"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const MATERIAL_LIST_PATHNAME = "/dashboard/material"
@@ -20,6 +21,8 @@ type MaterialListPageProps = {
 }
 
 export default async function MaterialListPage({ searchParams }: MaterialListPageProps) {
+  await requireDashboardAccess("accessMaterialRead")
+
   const resolvedSearchParams = await searchParams
 
   const sortByParam = parseSingleSearchParam(resolvedSearchParams.sortBy) as

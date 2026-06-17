@@ -6,6 +6,7 @@ import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
 import { OrderListClient } from "@/components/order/order-list-client"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const ORDER_LIST_PATHNAME = "/dashboard/order"
@@ -22,6 +23,8 @@ type OrderPageProps = {
 }
 
 export default async function OrderPage({ searchParams }: OrderPageProps) {
+  await requireDashboardAccess("accessOrderRead")
+
   const resolvedSearchParams = await searchParams
 
   const queryInput: OrderListQueryInput = {

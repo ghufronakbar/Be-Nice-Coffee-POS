@@ -300,7 +300,7 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
         <div className="rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-base font-semibold text-zinc-900">Tambah Material Baru</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Supaya tidak bolak-balik halaman, material baru bisa dibuat dari sini.
+            Tambahkan material baru untuk keperluan recipe dan inventory.
           </p>
 
           <Form {...materialForm}>

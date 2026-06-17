@@ -6,6 +6,7 @@ import { QueryControls } from "@/components/data-table/query-controls"
 import { QueryPagination } from "@/components/data-table/query-pagination"
 import { MaterialPurchaseListClient } from "@/components/material/material-purchase-list-client"
 import { Button } from "@/components/ui/button"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const MATERIAL_PURCHASE_PATHNAME = "/dashboard/material/purchase"
@@ -22,6 +23,8 @@ type MaterialPurchasePageProps = {
 }
 
 export default async function MaterialPurchasePage({ searchParams }: MaterialPurchasePageProps) {
+  await requireDashboardAccess("accessMaterialPurchaseRead")
+
   const resolvedSearchParams = await searchParams
 
   const purchaseList = await getMaterialPurchaseListAction({

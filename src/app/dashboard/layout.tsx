@@ -10,5 +10,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/auth/login")
   }
 
-  return <DashboardShell user={{ name: user.name, email: user.email }}>{children}</DashboardShell>
+  return <DashboardShell user={{ name: user.name, email: user.email, access: user.access }}>{children}</DashboardShell>
 }

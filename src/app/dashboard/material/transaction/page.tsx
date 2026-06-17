@@ -7,6 +7,7 @@ import { QueryPagination } from "@/components/data-table/query-pagination"
 import { MaterialTransactionListClient } from "@/components/material/material-transaction-list-client"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { MATERIAL_TRANSACTION_TYPES } from "@/constants/constants"
+import { requireDashboardAccess } from "@/lib/authorization"
 import { parseSingleSearchParam } from "@/lib/query-string"
 
 const MATERIAL_TRANSACTION_PATHNAME = "/dashboard/material/transaction"
@@ -23,6 +24,8 @@ type MaterialTransactionPageProps = {
 }
 
 export default async function MaterialTransactionPage({ searchParams }: MaterialTransactionPageProps) {
+  await requireDashboardAccess("accessMaterialTransactionRead")
+
   const resolvedSearchParams = await searchParams
 
   const queryInput: MaterialTransactionListQueryInput = {

@@ -6,6 +6,13 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { getSessionUser } from "@/lib/auth"
+import {
+  ACCESS_FIELDS,
+  ACCESS_SELECT,
+  DEFAULT_ACCESS_MAP,
+  type AccessField,
+  resolveUserAccess,
+} from "@/lib/access-control"
 import { prisma } from "@/lib/prisma"
 
 const DEFAULT_USER_PASSWORD = "12345678"
@@ -21,9 +28,14 @@ const userListQuerySchema = z.object({
   pageSize: z.coerce.number().int().default(10),
 })
 
+const accessCreateShape = Object.fromEntries(
+  ACCESS_FIELDS.map((field) => [field, z.boolean().default(false)])
+) as Record<AccessField, z.ZodDefault<z.ZodBoolean>>
+
 const userCreateSchema = z.object({
   name: z.string().trim().min(3, "Nama minimal 3 karakter"),
   email: z.string().trim().email("Email tidak valid"),
+  ...accessCreateShape,
 })
 
 type MutationResult = {
@@ -35,12 +47,14 @@ async function getSuperadminUser() {
   return prisma.user.findFirst({
     where: {
       deletedAt: null,
+      isSuperAdmin: true,
     },
     select: {
       id: true,
       name: true,
       email: true,
       createdAt: true,
+      isSuperAdmin: true,
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   })
@@ -60,7 +74,7 @@ async function getManagePermissionContext() {
   return {
     sessionUser,
     superadmin,
-    isSuperadminActor: sessionUser.id === superadmin.id,
+    isSuperadminActor: Boolean(sessionUser.isSuperAdmin),
   }
 }
 
@@ -116,7 +130,7 @@ export async function getUserListAction(queryInput: {
       : {}),
   }
 
-  const [{ superadmin, isSuperadminActor }, totalItems] = await Promise.all([
+  const [{ isSuperadminActor }, totalItems] = await Promise.all([
     getManagePermissionContext(),
     prisma.user.count({ where: whereCondition }),
   ])
@@ -130,6 +144,8 @@ export async function getUserListAction(queryInput: {
       id: true,
       name: true,
       email: true,
+      isSuperAdmin: true,
+      ...ACCESS_SELECT,
       createdAt: true,
       updatedAt: true,
     },
@@ -143,7 +159,8 @@ export async function getUserListAction(queryInput: {
   return {
     items: users.map((user) => ({
       ...user,
-      isSuperadmin: user.id === superadmin?.id,
+      access: resolveUserAccess(user),
+      isSuperadmin: user.isSuperAdmin,
     })),
     totalItems,
     totalPages,
@@ -170,6 +187,8 @@ export async function getUserDetailAction(userId: number) {
         id: true,
         name: true,
         email: true,
+        isSuperAdmin: true,
+        ...ACCESS_SELECT,
         createdAt: true,
         updatedAt: true,
       },
@@ -180,10 +199,11 @@ export async function getUserDetailAction(userId: number) {
     return null
   }
 
-  const isTargetSuperadmin = user.id === context.superadmin?.id
+  const isTargetSuperadmin = user.isSuperAdmin
 
   return {
     ...user,
+    access: resolveUserAccess(user),
     isSuperadmin: isTargetSuperadmin,
     actorCanManage: context.isSuperadminActor,
     canResetPassword: context.isSuperadminActor,
@@ -191,7 +211,7 @@ export async function getUserDetailAction(userId: number) {
   }
 }
 
-export async function createUserAction(values: { name: string; email: string }): Promise<MutationResult> {
+export async function createUserAction(values: z.input<typeof userCreateSchema>): Promise<MutationResult> {
   const validatedValues = userCreateSchema.safeParse(values)
 
   if (!validatedValues.success) {
@@ -218,6 +238,10 @@ export async function createUserAction(values: { name: string; email: string }):
         name: validatedValues.data.name,
         email: validatedValues.data.email,
         password: hashedPassword,
+        isSuperAdmin: false,
+        ...Object.fromEntries(
+          ACCESS_FIELDS.map((field) => [field, validatedValues.data[field] ?? DEFAULT_ACCESS_MAP[field]])
+        ),
       },
     })
 
@@ -307,6 +331,7 @@ export async function deleteUserAction(userId: number): Promise<MutationResult> 
     select: {
       id: true,
       email: true,
+      isSuperAdmin: true,
     },
   })
 
@@ -317,7 +342,7 @@ export async function deleteUserAction(userId: number): Promise<MutationResult> 
     }
   }
 
-  if (targetUser.id === context.superadmin?.id) {
+  if (targetUser.isSuperAdmin) {
     return {
       success: false,
       message: "Superadmin tidak dapat dihapus",

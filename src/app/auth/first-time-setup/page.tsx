@@ -2,12 +2,13 @@ import { redirect } from "next/navigation"
 
 import { getAuthSetupState } from "@/actions/user"
 import FirstTimeSetupClient from "@/app/auth/first-time-setup/client"
+import { resolveDashboardLandingPath } from "@/lib/access-control"
 
 export default async function FirstTimeSetupPage() {
   const { hasAnyUser, sessionUser } = await getAuthSetupState()
 
   if (sessionUser) {
-    redirect("/dashboard")
+    redirect(resolveDashboardLandingPath(sessionUser))
   }
 
   if (hasAnyUser) {

@@ -1,3 +1,5 @@
+import type { AccessField } from "@/lib/access-control"
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const APP_NAME = "Be Nice Coffee"
@@ -57,6 +59,7 @@ export const MATERIAL_TRANSACTION_TYPES = (
 export type DashboardNavigationItem = {
   href: string
   label: string
+  access: AccessField
 }
 
 export type DashboardNavigationSection = {
@@ -67,31 +70,47 @@ export type DashboardNavigationSection = {
 export const DASHBOARD_NAVIGATION: DashboardNavigationSection[] = [
   {
     title: "Beranda",
-    items: [{ href: "/dashboard", label: "Dashboard" }],
+    items: [{ href: "/dashboard", label: "Dashboard", access: "accessOverviewRead" }],
   },
   {
     title: "Master Data",
     items: [
-      { href: "/dashboard/menu", label: "Menu & Resep" },
-      { href: "/dashboard/material", label: "Material" },
-      { href: "/dashboard/customer", label: "Customer" },
-      { href: "/dashboard/user", label: "Pengguna" },
+      { href: "/dashboard/menu", label: "Menu & Resep", access: "accessMenuRead" },
+      { href: "/dashboard/material", label: "Material", access: "accessMaterialRead" },
+      { href: "/dashboard/customer", label: "Customer", access: "accessCustomerRead" },
+      { href: "/dashboard/user", label: "Pengguna", access: "accessUserRead" },
     ],
   },
   {
     title: "Inventory",
     items: [
-      { href: "/dashboard/material/transaction", label: "Transaksi Material" },
-      { href: "/dashboard/material/purchase", label: "Pembelian Material" },
-      { href: "/dashboard/material/adjustment", label: "Penyesuaian Material" },
+      {
+        href: "/dashboard/material/transaction",
+        label: "Transaksi Material",
+        access: "accessMaterialTransactionRead",
+      },
+      {
+        href: "/dashboard/material/purchase",
+        label: "Pembelian Material",
+        access: "accessMaterialPurchaseRead",
+      },
+      {
+        href: "/dashboard/material/adjustment",
+        label: "Penyesuaian Material",
+        access: "accessMaterialAdjustmentRead",
+      },
     ],
   },
   {
     title: "Penjualan",
     items: [
-      { href: "/dashboard/order", label: "Riwayat Pesanan" },
-      { href: "/dashboard/order/point-of-sales", label: "Point of Sales" },
-      { href: "/dashboard/report", label: "Laporan" },
+      { href: "/dashboard/order", label: "Riwayat Pesanan", access: "accessOrderRead" },
+      {
+        href: "/dashboard/order/point-of-sales",
+        label: "Point of Sales",
+        access: "accessPointOfSalesWrite",
+      },
+      { href: "/dashboard/report", label: "Laporan", access: "accessReportRead" },
     ],
   },
 ]

@@ -600,7 +600,6 @@ export function ReportClient({ report }: ReportClientProps) {
             <div key={summary.type} className="rounded-lg border border-zinc-200 p-3">
               <p className="text-sm font-medium text-zinc-900">{getMaterialTransactionTypeLabel(summary.type)}</p>
               <p className="mt-1 text-xl font-semibold text-zinc-900">{summary.count}</p>
-              <p className="text-sm text-zinc-600">Total amount: {formatSignedAmount(summary.amount)}</p>
             </div>
           ))}
         </div>
