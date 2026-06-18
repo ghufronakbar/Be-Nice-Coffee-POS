@@ -3,13 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useWatch } from "react-hook-form"
 
+import { UserAccessFields } from "@/components/user/user-access-fields"
 import {
   userFormSchema,
   type UserFormInputValues,
   type UserFormValues,
 } from "@/components/user/user-form-schema"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { ACCESS_FIELDS, ACCESS_GROUPS, type AccessField } from "@/lib/access-control"
+import { ACCESS_FIELDS, type AccessField, type AccessMap } from "@/lib/access-control"
 
 type UserFormModalProps = {
   open: boolean
@@ -56,11 +56,7 @@ export function UserFormModal({
   })
   const watchedAccessMap = Object.fromEntries(
     ACCESS_FIELDS.map((field, index) => [field, Boolean(watchedAccessValues[index])])
-  ) as Record<AccessField, boolean>
-
-  function areAllChecked(fields: AccessField[]) {
-    return fields.every((field) => watchedAccessMap[field])
-  }
+  ) as AccessMap
 
   function setAccessFields(fields: AccessField[], checked: boolean) {
     fields.forEach((field) => {
@@ -69,6 +65,10 @@ export function UserFormModal({
         shouldValidate: true,
       })
     })
+  }
+
+  function setAccessField(field: AccessField, checked: boolean) {
+    setAccessFields([field], checked)
   }
 
   return (
@@ -125,80 +125,12 @@ export function UserFormModal({
 
             <p className="text-xs text-zinc-500">Password default user baru adalah 12345678.</p>
 
-            <div className="space-y-3 rounded-xl border border-zinc-200 p-4">
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Hak Akses</p>
-                <p className="text-xs text-zinc-500">
-                  Gunakan checkbox group untuk memilih banyak akses sekaligus.
-                </p>
-              </div>
-
-              {ACCESS_GROUPS.map((group) => {
-                const groupFields = group.fields.map((field) => field.field)
-                const isGroupChecked = areAllChecked(groupFields)
-
-                return (
-                  <div key={group.title} className="rounded-lg border border-zinc-200 p-3">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-900">{group.title}</p>
-                        <p className="text-xs text-zinc-500">{group.description}</p>
-                      </div>
-                      <label className="flex items-center gap-2 text-xs font-medium text-zinc-700">
-                        <Checkbox
-                          checked={isGroupChecked}
-                          onCheckedChange={(checked) => setAccessFields(groupFields, checked === true)}
-                        />
-                        Semua {group.title}
-                      </label>
-                    </div>
-
-                    {group.subgroups ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {group.subgroups.map((subgroup) => (
-                          <label
-                            key={subgroup.label}
-                            className="flex items-center gap-2 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700"
-                          >
-                            <Checkbox
-                              checked={areAllChecked(subgroup.fields)}
-                              onCheckedChange={(checked) => setAccessFields(subgroup.fields, checked === true)}
-                            />
-                            {subgroup.label}
-                          </label>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-3 grid gap-2 md:grid-cols-2">
-                      {group.fields.map((accessItem) => (
-                        <FormField
-                          key={accessItem.field}
-                          control={form.control}
-                          name={accessItem.field}
-                          render={({ field }) => (
-                            <FormItem className="flex items-start gap-2 rounded-md border border-zinc-100 p-2">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value}
-                                  onCheckedChange={(checked) => field.onChange(checked === true)}
-                                />
-                              </FormControl>
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-sm font-medium text-zinc-900">
-                                  {accessItem.label}
-                                </FormLabel>
-                                <p className="text-xs text-zinc-500">{accessItem.description}</p>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <UserAccessFields
+              values={watchedAccessMap}
+              disabled={disabled}
+              onChange={setAccessField}
+              onChangeMany={setAccessFields}
+            />
 
             <Button type="submit" disabled={disabled}>
               {submitLabel}

@@ -6,11 +6,15 @@ const accessFormShape = Object.fromEntries(
   ACCESS_FIELDS.map((field) => [field, z.boolean().default(false)])
 ) as Record<AccessField, z.ZodDefault<z.ZodBoolean>>
 
+export const userAccessFormSchema = z.object(accessFormShape)
+
 export const userFormSchema = z.object({
   name: z.string().trim().min(3, "Nama minimal 3 karakter"),
   email: z.string().trim().email("Email tidak valid"),
   ...accessFormShape,
 })
 
+export type UserAccessFormInputValues = z.input<typeof userAccessFormSchema>
+export type UserAccessFormValues = z.output<typeof userAccessFormSchema>
 export type UserFormInputValues = z.input<typeof userFormSchema>
 export type UserFormValues = z.output<typeof userFormSchema>

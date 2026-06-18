@@ -38,6 +38,8 @@ const userCreateSchema = z.object({
   ...accessCreateShape,
 })
 
+const userAccessUpdateSchema = z.object(accessCreateShape)
+
 type MutationResult = {
   success: boolean
   message: string
@@ -206,6 +208,7 @@ export async function getUserDetailAction(userId: number) {
     access: resolveUserAccess(user),
     isSuperadmin: isTargetSuperadmin,
     actorCanManage: context.isSuperadminActor,
+    canUpdateAccess: context.isSuperadminActor && !isTargetSuperadmin,
     canResetPassword: context.isSuperadminActor,
     canDelete: context.isSuperadminActor && !isTargetSuperadmin,
   }
@@ -263,6 +266,71 @@ export async function createUserAction(values: z.input<typeof userCreateSchema>)
       success: false,
       message: "Gagal menambahkan user",
     }
+  }
+}
+
+export async function updateUserAccessAction(
+  userId: number,
+  values: z.input<typeof userAccessUpdateSchema>
+): Promise<MutationResult> {
+  const validatedValues = userAccessUpdateSchema.safeParse(values)
+
+  if (!validatedValues.success) {
+    return {
+      success: false,
+      message: validatedValues.error.issues[0]?.message ?? "Data hak akses tidak valid",
+    }
+  }
+
+  const context = await getManagePermissionContext()
+
+  if (!context.isSuperadminActor) {
+    return {
+      success: false,
+      message: "Hanya superadmin yang dapat mengubah hak akses user",
+    }
+  }
+
+  const targetUser = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      isSuperAdmin: true,
+    },
+  })
+
+  if (!targetUser) {
+    return {
+      success: false,
+      message: "User tidak ditemukan",
+    }
+  }
+
+  if (targetUser.isSuperAdmin) {
+    return {
+      success: false,
+      message: "Hak akses superadmin tidak perlu diubah karena selalu memiliki semua akses",
+    }
+  }
+
+  await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: Object.fromEntries(
+      ACCESS_FIELDS.map((field) => [field, validatedValues.data[field] ?? DEFAULT_ACCESS_MAP[field]])
+    ),
+  })
+
+  revalidatePath("/dashboard/user")
+  revalidatePath(`/dashboard/user/${userId}`)
+
+  return {
+    success: true,
+    message: "Hak akses user berhasil diperbarui",
   }
 }
 

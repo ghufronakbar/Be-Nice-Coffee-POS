@@ -3,11 +3,25 @@
 import { useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { KeyRoundIcon, Trash2Icon } from "lucide-react"
+import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
-import { deleteUserAction, resetUserPasswordAction } from "@/actions/user-management"
+import {
+  deleteUserAction,
+  resetUserPasswordAction,
+  updateUserAccessAction,
+} from "@/actions/user-management"
 import { Button } from "@/components/ui/button"
+import { Form } from "@/components/ui/form"
+import { UserAccessFields } from "@/components/user/user-access-fields"
+import {
+  userAccessFormSchema,
+  type UserAccessFormInputValues,
+  type UserAccessFormValues,
+} from "@/components/user/user-form-schema"
+import { ACCESS_FIELDS, type AccessField, type AccessMap } from "@/lib/access-control"
 import { formatDateTime } from "@/lib/format"
 
 type UserDetail = {
@@ -17,7 +31,9 @@ type UserDetail = {
   createdAt: Date
   updatedAt: Date
   isSuperadmin: boolean
+  access: AccessMap
   actorCanManage: boolean
+  canUpdateAccess: boolean
   canResetPassword: boolean
   canDelete: boolean
 }
@@ -29,6 +45,30 @@ type UserDetailClientProps = {
 export function UserDetailClient({ user }: UserDetailClientProps) {
   const router = useRouter()
   const [isBusy, startTransition] = useTransition()
+  const accessForm = useForm<UserAccessFormInputValues, undefined, UserAccessFormValues>({
+    resolver: zodResolver(userAccessFormSchema),
+    defaultValues: user.access,
+  })
+  const watchedAccessValues = useWatch({
+    control: accessForm.control,
+    name: ACCESS_FIELDS,
+  })
+  const watchedAccessMap = Object.fromEntries(
+    ACCESS_FIELDS.map((field, index) => [field, Boolean(watchedAccessValues[index])])
+  ) as AccessMap
+
+  function setAccessFields(fields: AccessField[], checked: boolean) {
+    fields.forEach((field) => {
+      accessForm.setValue(field, checked, {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+    })
+  }
+
+  function setAccessField(field: AccessField, checked: boolean) {
+    setAccessFields([field], checked)
+  }
 
   return (
     <div className="space-y-6">
@@ -41,6 +81,53 @@ export function UserDetailClient({ user }: UserDetailClientProps) {
         <Button asChild variant="outline">
           <Link href="/dashboard/user">Kembali ke List User</Link>
         </Button>
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-5">
+        <h2 className="text-base font-semibold text-zinc-900">Hak Akses</h2>
+        <div className="mt-2 space-y-1 text-sm text-zinc-600">
+          {!user.actorCanManage ? (
+            <p>Hanya superadmin yang dapat mengubah hak akses user.</p>
+          ) : user.isSuperadmin ? (
+            <p>
+              User ini adalah superadmin. Semua akses selalu aktif secara sistem walaupun nilai
+              database berubah.
+            </p>
+          ) : (
+            <p>Ubah hak akses user berdasarkan halaman dan tanggung jawab operasional.</p>
+          )}
+        </div>
+
+        <Form {...accessForm}>
+          <form
+            className="mt-4 space-y-4"
+            onSubmit={accessForm.handleSubmit((values) => {
+              startTransition(async () => {
+                const result = await updateUserAccessAction(user.id, values)
+
+                if (!result.success) {
+                  toast.error(result.message)
+                  return
+                }
+
+                toast.success(result.message)
+                accessForm.reset(values)
+                router.refresh()
+              })
+            })}
+          >
+            <UserAccessFields
+              values={watchedAccessMap}
+              disabled={!user.canUpdateAccess || isBusy}
+              onChange={setAccessField}
+              onChangeMany={setAccessFields}
+            />
+
+            <Button type="submit" disabled={!user.canUpdateAccess || isBusy || !accessForm.formState.isDirty}>
+              Simpan Hak Akses
+            </Button>
+          </form>
+        </Form>
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-5">
