@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/constants/constants"
 import { getSessionUser } from "@/lib/auth"
 import {
   ACCESS_FIELDS,
@@ -17,15 +18,14 @@ import { prisma } from "@/lib/prisma"
 
 const DEFAULT_USER_PASSWORD = "12345678"
 
-const pageSizeOptions = [10, 20, 50] as const
-const pageSizeEnum = z.enum(pageSizeOptions.map(String) as [string, ...string[]])
+const pageSizeEnum = z.enum(PAGE_SIZE_OPTIONS.map(String) as [string, ...string[]])
 
 const userListQuerySchema = z.object({
   q: z.string().trim().optional(),
   sortBy: z.enum(["name", "email", "createdAt", "updatedAt"]).default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().default(10),
+  pageSize: z.coerce.number().int().default(DEFAULT_PAGE_SIZE),
 })
 
 const accessCreateShape = Object.fromEntries(
@@ -80,7 +80,7 @@ async function getManagePermissionContext() {
 
 function normalizePageSize(pageSize: number) {
   if (!pageSizeEnum.safeParse(String(pageSize)).success) {
-    return 10
+    return DEFAULT_PAGE_SIZE
   }
 
   return pageSize
@@ -102,7 +102,7 @@ export async function getUserListAction(queryInput: {
         sortBy: "updatedAt" as const,
         sortOrder: "desc" as const,
         page: 1,
-        pageSize: 10,
+        pageSize: DEFAULT_PAGE_SIZE,
       }
 
   const q = (query.q ?? "").trim()

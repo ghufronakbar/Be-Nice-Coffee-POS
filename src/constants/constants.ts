@@ -5,7 +5,7 @@ export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 export const APP_NAME = "Be Nice Coffee"
 
 export const DEFAULT_PAGE_SIZE = 10
-export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const
+export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const
 
 export const MATERIAL_UNIT_LABEL_MAP = {
   GRAM: "Gram",

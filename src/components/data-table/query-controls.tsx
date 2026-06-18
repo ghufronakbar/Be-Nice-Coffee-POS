@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { PAGE_SIZE_OPTIONS } from "@/constants/constants"
 
 type SortOption = {
   value: string
@@ -57,10 +58,11 @@ export function QueryControls({
 
       <div className="lg:col-span-1">
         <NativeSelect className="w-full" name="pageSize" defaultValue={String(pageSize)}>
-          <NativeSelectOption value="5">5</NativeSelectOption>
-          <NativeSelectOption value="10">10</NativeSelectOption>
-          <NativeSelectOption value="20">20</NativeSelectOption>
-          <NativeSelectOption value="50">50</NativeSelectOption>
+          {PAGE_SIZE_OPTIONS.map((option) => (
+            <NativeSelectOption key={option} value={String(option)}>
+              {option}
+            </NativeSelectOption>
+          ))}
         </NativeSelect>
       </div>
 
