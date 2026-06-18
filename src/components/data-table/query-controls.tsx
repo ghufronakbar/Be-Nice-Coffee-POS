@@ -57,6 +57,7 @@ export function QueryControls({
 
       <div className="lg:col-span-1">
         <NativeSelect className="w-full" name="pageSize" defaultValue={String(pageSize)}>
+          <NativeSelectOption value="5">5</NativeSelectOption>
           <NativeSelectOption value="10">10</NativeSelectOption>
           <NativeSelectOption value="20">20</NativeSelectOption>
           <NativeSelectOption value="50">50</NativeSelectOption>
