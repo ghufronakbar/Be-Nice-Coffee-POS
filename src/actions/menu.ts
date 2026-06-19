@@ -351,3 +351,53 @@ export async function updateMenuWithRecipesAction(
     menuId,
   }
 }
+
+export async function deleteMenuAction(menuId: number): Promise<MenuMutationResult> {
+  const existingMenu = await prisma.menu.findFirst({
+    where: {
+      id: menuId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+    },
+  })
+
+  if (!existingMenu) {
+    return {
+      success: false,
+      message: "Menu tidak ditemukan",
+    }
+  }
+
+  const now = new Date()
+
+  await prisma.$transaction(async (tx) => {
+    await tx.recipe.updateMany({
+      where: {
+        menuId,
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: now,
+      },
+    })
+
+    await tx.menu.update({
+      where: {
+        id: menuId,
+      },
+      data: {
+        deletedAt: now,
+      },
+    })
+  })
+
+  revalidatePath("/dashboard/menu")
+  revalidatePath(`/dashboard/menu/${menuId}`)
+
+  return {
+    success: true,
+    message: "Menu berhasil dihapus",
+  }
+}

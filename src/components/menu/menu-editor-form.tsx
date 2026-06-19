@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { createMaterialFromMenuAction, type MaterialOption } from "@/actions/material"
 import {
   createMenuWithRecipesAction,
+  deleteMenuAction,
   updateMenuWithRecipesAction,
 } from "@/actions/menu"
 import {
@@ -133,6 +134,33 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
     })
   }
 
+  const handleDeleteMenu = () => {
+    if (!menuId) {
+      return
+    }
+
+    const isConfirmed = window.confirm(
+      "Hapus menu ini? Menu tidak akan tampil lagi di daftar menu dan POS."
+    )
+
+    if (!isConfirmed) {
+      return
+    }
+
+    startSubmitMenuTransition(async () => {
+      const result = await deleteMenuAction(menuId)
+
+      if (!result.success) {
+        toast.error(result.message)
+        return
+      }
+
+      toast.success(result.message)
+      router.push("/dashboard/menu")
+      router.refresh()
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -140,9 +168,18 @@ export function MenuEditorForm({ mode, menuId, materials, initialValues }: MenuE
           {mode === "create" ? "Buat Menu Baru" : "Detail & Edit Menu"}
         </h1>
 
-        <Button asChild variant="outline">
-          <Link href="/dashboard/menu">Kembali ke List Menu</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {mode === "edit" ? (
+            <Button type="button" variant="destructive" disabled={isBusy} onClick={handleDeleteMenu}>
+              <Trash2Icon className="size-4" />
+              Hapus Menu
+            </Button>
+          ) : null}
+
+          <Button asChild variant="outline">
+            <Link href="/dashboard/menu">Kembali ke List Menu</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
